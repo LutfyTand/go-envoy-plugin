@@ -1,0 +1,23 @@
+services:
+  proxy:
+    build:
+      context: .
+      dockerfile: Dockerfile.example
+    ports:
+      - 10000:10000
+    command:
+      - "/usr/local/bin/envoy"
+      - -c
+      - /etc/envoy.yaml
+      - --log-level warn
+      - --component-log-level http:info,golang:error,misc:error
+    environment:
+      - GODEBUG=cgocheck=0
+    volumes:
+      - ./plugin/envoy.yaml:/etc/envoy.yaml
+  helloworld_service:
+    # image: registry.k8s.io/echoserver:1.10
+    # if you are using Apple M1, use below image, otherwise above.
+    image: kicbase/echo-server:1.0
+  podinfo_service:
+    image: ghcr.io/stefanprodan/podinfo:6.5.0

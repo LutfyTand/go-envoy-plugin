@@ -1,0 +1,61 @@
+# envoy demo with golang extension enabled
+static_resources:
+  listeners:
+  - name: listener_0
+    address:
+      socket_address:
+        address: 0.0.0.0
+        port_value: 10000
+    filter_chains:
+    - filters:
+      - name: envoy.filters.network.http_connection_manager
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+          stat_prefix: ingress_http
+          use_remote_address: true
+          always_set_request_id_in_response: true
+          codec_type: auto
+          http_filters:
+          - name: envoy.filters.http.golang
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.golang.v3alpha.Config
+              library_id: http_plugin
+              library_path: "lib/http_plugin.so"
+              plugin_name: http_plugin
+              plugin_config:
+                "@type": type.googleapis.com/xds.type.v3.TypedStruct
+                value:
+                  add_request_headers:
+                    x-city: "bandung"
+                    x-country-code: "ID"
+                  add_response_headers:
+                    via: gateway.lutung.dev
+                    host-alias: localhost
+                  edge_allowlist_ips:
+                    - "0.0.0.0/0"
+          - name: envoy.filters.http.router
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+          route_config:
+            name: local_route
+            virtual_hosts:
+            - name: local_service
+              domains: ["*"]
+              routes:
+              - match:
+                  prefix: "/"
+                route:
+                  cluster: helloworld_service_cluster
+  clusters:
+  - name: helloworld_service_cluster
+    type: STRICT_DNS
+    lb_policy: ROUND_ROBIN
+    load_assignment:
+      cluster_name: helloworld_service_cluster
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: helloworld_service
+                port_value: 8080
